@@ -175,6 +175,7 @@ func refresh_file_system() -> void:
 	get_editor_interface().get_resource_filesystem().scan()
 
 func step_read(filepath: String, i: int, force_overwrite: bool = false, ignore_paths: Dictionary = {}) -> void:
+	# would've passed it by reference to keep it out of this function's scope, but gdscript can't do that :(
 	var reader := ZIPReader.new()
 	var err := reader.open(filepath)
 	if err != OK: return
@@ -197,13 +198,13 @@ func step_read(filepath: String, i: int, force_overwrite: bool = false, ignore_p
 		
 		# if the user selects confirm, write the file and go to the next one
 		dialog.confirmed.connect(func():
-			if dialog.is_inside_tree(): remove_child(dialog)
+			dialog.queue_free()
 			write_file(write_path, reader.read_file(path))
 			step_read(filepath, i+1, force_overwrite, ignore_paths)
 		)
 		# if the user selects cancel or closes the dialog, just go to the next file
 		dialog.canceled.connect(func():
-			if dialog.is_inside_tree(): remove_child(dialog)
+			dialog.queue_free()
 			step_read(filepath, i+1, force_overwrite, ignore_paths)
 		)
 		# if the user presses another button
@@ -241,12 +242,15 @@ func _on_unpack_scene() -> void:
 	
 	dialog_to_preview.canceled.connect(func():
 		previewing_type = PreviewingType.None
+		preview_tree.queue_free()
+		dialog_to_preview.queue_free()
 	)
 	
 	dialog_to_preview.file_selected.connect(func(filepath: String):
 		previewing_type = PreviewingType.None
 		var force_overwrite: bool = dialog_to_preview.get_selected_options()["Force Overwrite on Load"]
-		remove_child(dialog_to_preview)
+		preview_tree.queue_free()
+		dialog_to_preview.queue_free()
 		
 		# remember unselected paths
 		var ignore_paths: Dictionary = {}
@@ -293,14 +297,16 @@ func _on_pack_scene() -> void:
 	
 	dialog_to_preview.canceled.connect(func():
 		previewing_type = PreviewingType.None
-		remove_child(dialog_to_preview)
-		remove_child(savefile)
+		preview_tree.queue_free()
+		dialog_to_preview.queue_free()
+		savefile.queue_free()
 	)
 	
 	dialog_to_preview.file_selected.connect(func(filepath: String):
 		previewing_type = PreviewingType.None
 		var dependency_search_mode: SearchMode = SearchMode.values()[dialog_to_preview.get_selected_options()[SEARCH_MODE_TITLE]]
-		remove_child(dialog_to_preview)
+		preview_tree.queue_free()
+		dialog_to_preview.queue_free()
 		var filename = filepath.get_file().get_basename()
 		
 		# search the scene
