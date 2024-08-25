@@ -23,7 +23,7 @@ The export will be a `*.gdpck` file, which is the same as a `*.zip` file, but re
 
 *(Project -> Tools -> Unpack Scene)*
 
-The plugin will ask you to select a *.gdpck file to unpack.
+The plugin will ask you to select a `*.gdpck` file to unpack.
 It will then show you a tree, similar to when packing. You may uncheck the files you don't want to unpack.
 Unless the Force Overwrite on Load option is checked, the plugin will ask you if you want to replace each file that is already there.
 
