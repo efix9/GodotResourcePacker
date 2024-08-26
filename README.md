@@ -11,7 +11,7 @@ Godot Scene Packer is a Godot 4.3 plugin that allows you to easily share scenes 
 
 <br>
 
-![image](https://github.com/user-attachments/assets/30a041d3-011a-47c5-ba32-232952056d4e)
+![image](https://github.com/user-attachments/assets/e93c39be-e41b-415b-9a55-3447f79267f7)
 
 The plugin will ask you which scene to pack, and will show you a tree featuring the found dependencies, from which you may uncheck the files you don't want to pack.
 
