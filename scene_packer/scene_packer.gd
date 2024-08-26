@@ -95,7 +95,8 @@ func _process(_delta: float) -> void:
 	root.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
 	root.set_checked(0, true)
 	root.set_editable(0, true)
-	root.set_text(0, "root")
+	root.set_text(0, "res://")
+	root.set_tooltip_text(0, "res://")
 	tree_item_states[root] = root.is_checked(0)
 	
 	# create the tree items
@@ -124,13 +125,15 @@ func _process(_delta: float) -> void:
 		# give the last node on the path a tooltip showing its full path
 		parent.set_tooltip_text(0, "res://"+writepath)
 
-func process_value(value, found: Dictionary) -> void:
+func process_value(value, found: Dictionary, search_mode: SearchMode) -> void:
 	if value:
 		if typeof(value) == TYPE_OBJECT && value.has_method("get_path"):
 			found[value.get_path()] = null
+			if search_mode == SearchMode.Recursive && value.is_class("Script") && value.has_method("get_base_script"):
+				process_value(value.get_base_script(), found, search_mode)
 		elif typeof(value) == TYPE_ARRAY:
 			for member in value:
-				process_value(member, found)
+				process_value(member, found, search_mode)
 
 func find_dependencies(packed_scene: PackedScene, found: Dictionary, search_mode: SearchMode) -> void:
 	if !packed_scene: return
@@ -157,10 +160,9 @@ func find_dependencies(packed_scene: PackedScene, found: Dictionary, search_mode
 		# search the properties
 		for property_idx in scene_state.get_node_property_count(instance_idx):
 			var value = scene_state.get_node_property_value(instance_idx, property_idx)
-			process_value(value, found)
-		
+			process_value(value, found, search_mode)
 	
-	# remove invalid dependencies
+	# remove scene exclusive objects, because they're already stored in the object itself
 	var keys = found.keys()
 	for file: String in keys:
 		if file.begins_with(packed_scene.resource_path) && file != packed_scene.resource_path:
@@ -243,6 +245,7 @@ func _on_unpack_scene() -> void:
 	dialog_to_preview.canceled.connect(func():
 		previewing_type = PreviewingType.None
 		preview_tree.queue_free()
+		tree_item_states.clear()
 		dialog_to_preview.queue_free()
 	)
 	
@@ -250,6 +253,7 @@ func _on_unpack_scene() -> void:
 		previewing_type = PreviewingType.None
 		var force_overwrite: bool = dialog_to_preview.get_selected_options()["Force Overwrite on Load"]
 		preview_tree.queue_free()
+		tree_item_states.clear()
 		dialog_to_preview.queue_free()
 		
 		# remember unselected paths
@@ -277,6 +281,8 @@ func _on_pack_scene() -> void:
 	dialog_to_preview.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 	dialog_to_preview.title = "Select Scene to Pack"
 	dialog_to_preview.add_filter("*.tscn")
+	dialog_to_preview.add_filter("*.scn")
+	dialog_to_preview.add_filter("*.res")
 	dialog_to_preview.add_option(SEARCH_MODE_TITLE, SEARCH_MODE_PARAMS, 0)
 	add_child(dialog_to_preview)
 	dialog_to_preview.popup_centered(Vector2(1500, 1000))
@@ -298,6 +304,7 @@ func _on_pack_scene() -> void:
 	dialog_to_preview.canceled.connect(func():
 		previewing_type = PreviewingType.None
 		preview_tree.queue_free()
+		tree_item_states.clear()
 		dialog_to_preview.queue_free()
 		savefile.queue_free()
 	)
@@ -306,6 +313,7 @@ func _on_pack_scene() -> void:
 		previewing_type = PreviewingType.None
 		var dependency_search_mode: SearchMode = SearchMode.values()[dialog_to_preview.get_selected_options()[SEARCH_MODE_TITLE]]
 		preview_tree.queue_free()
+		tree_item_states.clear()
 		dialog_to_preview.queue_free()
 		var filename = filepath.get_file().get_basename()
 		
