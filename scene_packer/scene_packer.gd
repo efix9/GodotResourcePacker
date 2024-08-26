@@ -101,6 +101,7 @@ func _process(_delta: float) -> void:
 	
 	# create the tree items
 	for path: String in files_to_show:
+		if path.ends_with(".import"): continue # skip .import files
 		var writepath: String = path.substr("res://".length(), path.length()-"res://".length()) if path.begins_with("res://") else path
 		var path_nodes: PackedStringArray = writepath.split("/")
 		var parent = root
@@ -352,6 +353,11 @@ func _on_pack_scene() -> void:
 			writer.start_file(writepath)
 			writer.write_file(FileAccess.get_file_as_bytes(path))
 			writer.close_file()
+			# try getting the .import files
+			if FileAccess.file_exists(path+".import"):
+				writer.start_file(writepath+".import")
+				writer.write_file(FileAccess.get_file_as_bytes(path+".import"))
+				writer.close_file()
 		
 		writer.close()
 	)
