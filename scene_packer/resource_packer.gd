@@ -24,12 +24,12 @@ enum PreviewingType {
 }
 
 func _enter_tree() -> void:
-	add_tool_menu_item("Pack Scene", Callable(_on_pack_scene))
-	add_tool_menu_item("Unpack Scene", Callable(_on_unpack_scene))
+	add_tool_menu_item("Pack Resource", Callable(_on_pack_resource))
+	add_tool_menu_item("Unpack Resource", Callable(_on_unpack_resource))
 
 func _exit_tree() -> void:
-	remove_tool_menu_item("Pack Scene")
-	remove_tool_menu_item("Unpack Scene")
+	remove_tool_menu_item("Pack Resource")
+	remove_tool_menu_item("Unpack Resource")
 
 var previewing_type: PreviewingType = PreviewingType.None
 var file_to_preview: String = ""
@@ -103,7 +103,7 @@ func _process(_delta: float) -> void:
 	for path: String in files_to_show:
 		if path.ends_with(".import"): continue # skip .import files
 		var writepath: String = path.substr("res://".length(), path.length()-"res://".length()) if path.begins_with("res://") else path
-		var path_nodes: PackedStringArray = writepath.split("/")
+		var path_nodes: PackedStringArray = writepath.split("/", false)
 		var parent = root
 		
 		# make all tree items required to reach the path
@@ -171,6 +171,7 @@ func find_dependencies(packed_scene: PackedScene, found: Dictionary, search_mode
 
 func write_file(write_path: String, content: PackedByteArray) -> void:
 	var writer = FileAccess.open(write_path, FileAccess.WRITE_READ)
+	if !writer: return print("unable to write: ", write_path)
 	writer.store_buffer(content)
 	writer.close()
 
@@ -188,7 +189,7 @@ func step_read(filepath: String, i: int, force_overwrite: bool = false, ignore_p
 	var path = file_paths[i]
 	
 	var write_path = "res://" + path
-	if ignore_paths.has(write_path): return step_read(filepath, i+1, force_overwrite, ignore_paths)
+	if ignore_paths.has(write_path) || path.get_file().is_empty(): return step_read(filepath, i+1, force_overwrite, ignore_paths)
 	
 	DirAccess.make_dir_recursive_absolute(write_path.get_base_dir())
 	if !force_overwrite && FileAccess.file_exists(write_path):
@@ -226,7 +227,7 @@ func step_read(filepath: String, i: int, force_overwrite: bool = false, ignore_p
 		write_file(write_path, reader.read_file(path))
 		step_read(filepath, i+1, force_overwrite, ignore_paths)
 
-func _on_unpack_scene() -> void:
+func _on_unpack_resource() -> void:
 	# request a file to load
 	dialog_to_preview = EditorFileDialog.new()
 	dialog_to_preview.access = EditorFileDialog.ACCESS_FILESYSTEM
@@ -271,16 +272,16 @@ func _on_unpack_scene() -> void:
 		step_read(filepath, 0, force_overwrite, ignore_paths)
 		
 		# wait a little before refreshing the file system
-		await get_tree().create_timer(0.5).timeout
+		await get_tree().create_timer(0.1).timeout
 		refresh_file_system()
 	)
 
-func _on_pack_scene() -> void:
+func _on_pack_resource() -> void:
 	# request a file to export
 	dialog_to_preview = EditorFileDialog.new()
 	dialog_to_preview.access = EditorFileDialog.ACCESS_RESOURCES
 	dialog_to_preview.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
-	dialog_to_preview.title = "Select Scene to Pack"
+	dialog_to_preview.title = "Select Resource to Pack"
 	dialog_to_preview.add_filter("*.tscn")
 	dialog_to_preview.add_filter("*.scn")
 	dialog_to_preview.add_filter("*.res")
@@ -294,20 +295,19 @@ func _on_pack_scene() -> void:
 	previewing_type = PreviewingType.Pack
 	
 	# prepare to request a location to export the file
-	var savefile = EditorFileDialog.new()
-	savefile.access = EditorFileDialog.ACCESS_FILESYSTEM
-	savefile.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
-	savefile.title = "Packing Location"
-	savefile.add_filter("*.gdpck")
-	savefile.add_option("Ignore File Structure (Breaks Dependencies)", [], 0)
-	add_child(savefile)
+	var savedialog = EditorFileDialog.new()
+	savedialog.access = EditorFileDialog.ACCESS_FILESYSTEM
+	savedialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
+	savedialog.title = "Packing Location"
+	savedialog.add_filter("*.gdpck")
+	add_child(savedialog)
 	
 	dialog_to_preview.canceled.connect(func():
 		previewing_type = PreviewingType.None
 		preview_tree.queue_free()
 		tree_item_states.clear()
 		dialog_to_preview.queue_free()
-		savefile.queue_free()
+		savedialog.queue_free()
 	)
 	
 	dialog_to_preview.file_selected.connect(func(filepath: String):
@@ -318,10 +318,10 @@ func _on_pack_scene() -> void:
 		dialog_to_preview.queue_free()
 		var filename = filepath.get_file().get_basename()
 		
-		# search the scene
-		var scene: PackedScene = load(filepath)
+		# search the resource
+		var resource: PackedScene = load(filepath)
 		var files_to_save = {}
-		find_dependencies(scene, files_to_save, dependency_search_mode)
+		find_dependencies(resource, files_to_save, dependency_search_mode)
 		
 		# remove unselected paths (the full paths are stored in the tooltips)
 		var nodes: Array[TreeItem] = preview_tree.get_root().get_children()
@@ -334,30 +334,33 @@ func _on_pack_scene() -> void:
 			nodes.remove_at(0)
 		
 		# request the save path
-		savefile.current_file = filename + ".gdpck"
-		savefile.popup_centered(Vector2(1200, 1000))
+		savedialog.current_file = filename + ".gdpck"
+		savedialog.popup_centered(Vector2(1200, 1000))
 		
-		var savepath = await savefile.file_selected
-		var ignore_file_structure: bool = savefile.get_selected_options()["Ignore File Structure (Breaks Dependencies)"]
-		savefile.queue_free()
+		savedialog.canceled.connect(func():
+			savedialog.queue_free()
+		)
 		
-		# prepare to write
-		var writer := ZIPPacker.new()
-		var err := writer.open(savepath)
-		if err != OK: return
-		
-		# write the scene and its requirements in a .gdexp file
-		for path in files_to_save:
-			var writepath: String = path.substr("res://".length(), path.length()-"res://".length())
-			if ignore_file_structure: writepath = writepath.get_file()
-			writer.start_file(writepath)
-			writer.write_file(FileAccess.get_file_as_bytes(path))
-			writer.close_file()
-			# try getting the .import files
-			if FileAccess.file_exists(path+".import"):
-				writer.start_file(writepath+".import")
-				writer.write_file(FileAccess.get_file_as_bytes(path+".import"))
+		savedialog.file_selected.connect(func(savepath):
+			savedialog.queue_free()
+			
+			# prepare to write
+			var writer := ZIPPacker.new()
+			var err := writer.open(savepath)
+			if err != OK: return
+			
+			# write the resource and its dependencies in a .gdpck file
+			for path in files_to_save:
+				var writepath: String = path.substr("res://".length(), path.length()-"res://".length())
+				writer.start_file(writepath)
+				writer.write_file(FileAccess.get_file_as_bytes(path))
 				writer.close_file()
-		
-		writer.close()
+				# try getting the .import files
+				if FileAccess.file_exists(path+".import"):
+					writer.start_file(writepath+".import")
+					writer.write_file(FileAccess.get_file_as_bytes(path+".import"))
+					writer.close_file()
+			
+			writer.close()
+		)
 	)
