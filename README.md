@@ -1,27 +1,27 @@
-# Godot Scene Packer - by Kaivexx
+# Godot Resource Packer - by Kaivexx
 
 ## Description
-Godot Scene Packer is a Godot 4.3 plugin that allows you to easily share scenes and all their dependencies as a single file you can export, then import.
+Godot Resource Packer is a Godot 4.3 plugin that allows you to easily share resource (like scenes) and all their dependencies as a single file you can export, then import.
 
 ## How To Use
-### Packing a Scene:
-![image](https://github.com/user-attachments/assets/1fb5873d-52b2-4f56-9c62-57a5ccd905c5)
+### Packing a Resource:
+![image](https://github.com/user-attachments/assets/4fbee40c-1119-4e43-bca9-eb9d047e3f3c)
 
-*(Project -> Tools -> Pack Scene)*
+*(Project -> Tools -> Pack Resource)*
 
 <br>
 
 ![image](https://github.com/user-attachments/assets/e93c39be-e41b-415b-9a55-3447f79267f7)
 
-The plugin will ask you which scene to pack, and will show you a tree featuring the found dependencies, from which you may uncheck the files you don't want to pack.
+The plugin will ask you which resource to pack, and will show you a tree featuring the found dependencies, from which you may uncheck the files you don't want to pack.
 
-Upon confirmation, the plugin will then ask for the location where it should export the scene pack.
+Upon confirmation, the plugin will then ask for the location where it should export the pack.
 The export will be a `*.gdpck` file, which is the same as a `*.zip` file, but renamed to ease the search for files we would want to unpack.
 
-### Unpacking a Scene:
-![image](https://github.com/user-attachments/assets/63f315b3-3523-405a-91e1-b79de3be8764)
+### Unpacking a Resource:
+![image](https://github.com/user-attachments/assets/459c6ab3-e537-4542-a5d4-3e0c85bc5d24)
 
-*(Project -> Tools -> Unpack Scene)*
+*(Project -> Tools -> Unpack Resource)*
 
 The plugin will ask you to select a `*.gdpck` file to unpack.
 It will then show you a tree, similar to when packing. You may uncheck the files you don't want to unpack.
