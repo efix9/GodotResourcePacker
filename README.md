@@ -1,7 +1,7 @@
 # Godot Resource Packer - by Kaivexx
 
 ## Description
-Godot Resource Packer is a Godot 4.3 plugin that allows you to easily share resource (like scenes) and all their dependencies as a single file you can export, then import.
+Godot Resource Packer is a Godot 4.3 plugin that allows you to easily share resources (like scenes) and all their dependencies as a single file you can export, then import.
 
 ## How To Use
 ### Packing a Resource:
